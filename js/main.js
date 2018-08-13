@@ -267,70 +267,50 @@ var map = new mapboxgl.Map({
     // initial zoom
     zoom: 14
 });
-
+// This adds the data to the map
 map.on('load', function (e) {
-    // Add the data to your map as a layer
-    map.addLayer({
-        id: 'locations',
-        type: 'symbol',
-        // Add a GeoJSON source containing place coordinates and information.
-        source: {
-            type: 'geojson',
-            data: stores
-        },
-        layout: {
-            'icon-image': 'restaurant-15',
-            'icon-allow-overlap': true,
-        }
+    // This is where your '.addLayer()' used to be, instead add only the source without styling a layer
+    map.addSource("places", {
+        "type": "geojson",
+        "data": stores
     });
+    // Initialize the list
     buildLocationList(stores);
+
 });
 
+// This is where your interactions with the symbol layer used to be
+// Now you have interactions with DOM markers instead
+stores.features.forEach(function (marker, i) {
+    // Create an img element for the marker
+    var el = document.createElement('div');
+    el.id = "marker-" + i;
+    el.className = 'marker';
+    // Add markers to the map at all points
+    new mapboxgl.Marker(el, { offset: [0, -23] })
+        .setLngLat(marker.geometry.coordinates)
+        .addTo(map);
 
+    el.addEventListener('click', function (e) {
+        // 1. Fly to the point
+        flyToStore(marker);
 
+        // 2. Close all other popups and display popup for clicked store
+        createPopUp(marker);
 
+        // 3. Highlight listing in sidebar (and remove highlight for all other listings)
+        var activeItem = document.getElementsByClassName('active');
 
-
-
-
-
-
-function buildLocationList(data) {
-    // Iterate through the list of stores
-    for (i = 0; i < data.features.length; i++) {
-        var currentFeature = data.features[i];
-        // Shorten data.feature.properties to just `prop` so we're not
-        // writing this long form over and over again.
-        var prop = currentFeature.properties;
-        // Select the listing container in the HTML and append a div
-        // with the class 'item' for each store
-        var listings = document.getElementById('listings');
-        var listing = listings.appendChild(document.createElement('div'));
-        listing.className = 'item';
-        listing.id = 'listing-' + i;
-
-        // Create a new link with the class 'title' for each store
-        // and fill it with the store address
-        var link = listing.appendChild(document.createElement('a'));
-        link.href = '#';
-        link.className = 'title';
-        link.dataPosition = i;
-        link.innerHTML = prop.address;
-
-        // Create a new div with the class 'details' for each store
-        // and fill it with the city and phone number
-        var details = listing.appendChild(document.createElement('div'));
-        details.innerHTML = prop.city;
-        if (prop.phone) {
-            details.innerHTML += ' &middot; ' + prop.phoneFormatted;
+        e.stopPropagation();
+        if (activeItem[0]) {
+            activeItem[0].classList.remove('active');
         }
-    }
-}
 
+        var listing = document.getElementById('listing-' + i);
+        listing.classList.add('active');
 
-
-
-
+    });
+});
 
 
 function flyToStore(currentFeature) {
@@ -339,6 +319,7 @@ function flyToStore(currentFeature) {
         zoom: 15
     });
 }
+
 function createPopUp(currentFeature) {
     var popUps = document.getElementsByClassName('mapboxgl-popup');
     if (popUps[0]) popUps[0].remove();
@@ -354,28 +335,20 @@ function createPopUp(currentFeature) {
 
 function buildLocationList(data) {
     for (i = 0; i < data.features.length; i++) {
-        // Create an array of all the stores and their properties
         var currentFeature = data.features[i];
-        // Shorten data.feature.properties to just `prop` so we're not
-        // writing this long form over and over again.
         var prop = currentFeature.properties;
-        // Select the listing container in the HTML
+
         var listings = document.getElementById('listings');
-        // Append a div with the class 'item' for each store 
         var listing = listings.appendChild(document.createElement('div'));
         listing.className = 'item';
         listing.id = "listing-" + i;
 
-        // Create a new link with the class 'title' for each store 
-        // and fill it with the store address
         var link = listing.appendChild(document.createElement('a'));
         link.href = '#';
         link.className = 'title';
         link.dataPosition = i;
         link.innerHTML = prop.address;
 
-        // Create a new div with the class 'details' for each store 
-        // and fill it with the city and phone number
         var details = listing.appendChild(document.createElement('div'));
         details.innerHTML = prop.city;
         if (prop.phone) {
@@ -384,14 +357,11 @@ function buildLocationList(data) {
 
 
 
-
-
-        
         link.addEventListener('click', function (e) {
             // Update the currentFeature to the store associated with the clicked link
             var clickedListing = data.features[this.dataPosition];
 
-            // 1. Fly to the point associated with the clicked link
+            // 1. Fly to the point
             flyToStore(clickedListing);
 
             // 2. Close all other popups and display popup for clicked store
@@ -408,43 +378,3 @@ function buildLocationList(data) {
         });
     }
 }
-
-
-
-
-
-
-
-
-map.on('click', function (e) {
-    var features = map.queryRenderedFeatures(e.point, {
-        layers: ['locations']
-    });
-
-    if (features.length) {
-        var clickedPoint = features[0];
-        // 1. Fly to the point
-        flyToStore(clickedPoint);
-
-        // 2. Close all other popups and display popup for clicked store
-        createPopUp(clickedPoint);
-
-        // 3. Highlight listing in sidebar (and remove highlight for all other listings)
-        var activeItem = document.getElementsByClassName('active');
-        if (activeItem[0]) {
-            activeItem[0].classList.remove('active');
-        }
-
-        var selectedFeature = clickedPoint.properties.address;
-
-        for (var i = 0; i < stores.features.length; i++) {
-            if (stores.features[i].properties.address === selectedFeature) {
-                selectedFeatureIndex = i;
-            }
-        }
-
-        var listing = document.getElementById('listing-' + selectedFeatureIndex);
-        listing.classList.add('active');
-
-    }
-});
